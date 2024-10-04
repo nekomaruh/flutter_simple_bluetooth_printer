@@ -25,6 +25,8 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
+    namespace "com.xiao.flutter_simple_bluetooth_printer"
+
     compileSdkVersion 31
 
     compileOptions {
