@@ -25,6 +25,8 @@ apply plugin: 'com.android.library'
 apply plugin: 'kotlin-android'
 
 android {
+    namespace "com.xiao.flutter_simple_bluetooth_printer"
+
     compileSdkVersion 31
 
     compileOptions {
@@ -48,4 +50,6 @@ android {
 dependencies {
     implementation "com.polidea.rxandroidble3:rxandroidble:1.17.2"
     implementation 'io.reactivex.rxjava3:rxandroid:3.0.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-core:1.7.2'
+    implementation 'org.jetbrains.kotlinx:kotlinx-coroutines-android:1.7.2'
 }

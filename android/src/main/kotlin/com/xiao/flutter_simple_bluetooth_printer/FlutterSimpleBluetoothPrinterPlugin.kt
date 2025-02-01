@@ -22,6 +22,10 @@ import io.flutter.plugin.common.MethodChannel.Result
 import io.flutter.plugin.common.PluginRegistry
 import java.util.UUID
 
+import kotlinx.coroutines.CoroutineScope
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.launch
+
 /** FlutterSimpleBluetoothPrinterPlugin */
 class FlutterSimpleBluetoothPrinterPlugin : FlutterPlugin, MethodCallHandler, PluginRegistry.RequestPermissionsResultListener,
         ActivityAware {
@@ -39,6 +43,12 @@ class FlutterSimpleBluetoothPrinterPlugin : FlutterPlugin, MethodCallHandler, Pl
     private lateinit var classicManager: ClassicManager
 
     private var currentActivity: Activity? = null
+
+    fun executeOnIO(block: suspend () -> Unit) {
+        CoroutineScope(Dispatchers.IO).launch {
+            block()
+        }
+    }
 
     override fun onAttachedToEngine(flutterPluginBinding: FlutterPlugin.FlutterPluginBinding) {
         val applicationContext = flutterPluginBinding.applicationContext
@@ -92,59 +102,103 @@ class FlutterSimpleBluetoothPrinterPlugin : FlutterPlugin, MethodCallHandler, Pl
 
     override fun onMethodCall(call: MethodCall, result: Result) {
         when (call.method) {
-            "getBluetoothState" -> getBluetoothState(result)
+            "getBluetoothState" -> executeOnIO {
+                getBluetoothState(result)
+            }
             "getBondedDevices" -> ensureBluetoothAvailable(isScan = false, result = result) {
-                bleManager.getBondedDevice(result.toWrapper)
+                executeOnIO {
+                    bleManager.getBondedDevice(result.toWrapper)
+                }
             }
             "startDiscovery" -> ensureBluetoothAvailable(isScan = true, result = result) {
                 val scanFilters = call.argument<List<Map<String, Any>>?>("filters")
                         ?.map { ScanFilter.Builder().fromMap(it) }
                         ?.toTypedArray()
-                bleManager.discovery(result.toWrapper, scanFilters)
+                executeOnIO {
+                    bleManager.discovery(result.toWrapper, scanFilters)
+                }
             }
             "stopDiscovery" -> ensureBluetoothAvailable(isScan = true, result = result) {
-                bleManager.stopDiscovery(result.toWrapper)
+                executeOnIO {
+                    bleManager.stopDiscovery(result.toWrapper)
+                }
             }
             "ensureConnected" -> ensureBluetoothAvailable(isScan = false, result = result) {
                 val address: String = call.argument("address")!!
                 val isLE: Boolean = call.argument("isLE") ?: true
-                if (isLE) bleManager.ensureConnected(address, result.toWrapper)
-                else classicManager.ensureConnected(address, result.toWrapper)
+                if (isLE) {
+                    executeOnIO {
+                        bleManager.ensureConnected(address, result.toWrapper)
+                    }
+                }
+                else {
+                    executeOnIO {
+                        classicManager.ensureConnected(address, result.toWrapper)
+                    }
+                }
             }
             "connect" -> ensureBluetoothAvailable(isScan = false, result = result) {
                 val address: String? = call.argument("address")
                 val config = ConnectionConfig.fromCall(call)
-                if (config is LEConnectionConfig) bleManager.connect(
-                        macAddress = address,
-                        config = config,
-                        result = result.toWrapper
-                )
-                else classicManager.connect(address = address, result = result.toWrapper)
+                if (config is LEConnectionConfig) {
+                    executeOnIO {
+                        bleManager.connect(
+                            macAddress = address,
+                            config = config,
+                            result = result.toWrapper
+                        )
+                    }
+                } else {
+                    executeOnIO {
+                        classicManager.connect(address = address, result = result.toWrapper)
+                    }
+                }
             }
             "disconnect" -> ensureBluetoothAvailable(isScan = false, result = result) {
                 val isBle: Boolean = call.argument("isBLE") ?: false
                 val delay: Int = call.argument("delay") ?: 0
-                if (isBle) bleManager.disconnect(result.toWrapper, delay)
-                else classicManager.disconnect(result.toWrapper, delay)
+                if (isBle) {
+                    executeOnIO {
+                        bleManager.disconnect(result.toWrapper, delay)
+                    }
+                }
+                else {
+                    executeOnIO {
+                        classicManager.disconnect(result.toWrapper, delay)
+                    }
+                }
             }
             "setupNotification" -> ensureBluetoothAvailable(isScan = false, result = result) {
                 val characteristicUuid: String = call.argument("characteristicUuid")!!
-                bleManager.setupNotification(result.toWrapper, characteristicUuid)
+                executeOnIO {
+                    bleManager.setupNotification(result.toWrapper, characteristicUuid)
+                }
             }
             "setupIndication" -> ensureBluetoothAvailable(isScan = false, result = result) {
                 val characteristicUuid: String = call.argument("characteristicUuid")!!
-                bleManager.setupIndication(result.toWrapper, characteristicUuid)
+                executeOnIO {
+                    bleManager.setupIndication(result.toWrapper, characteristicUuid)
+                }
             }
             "requestMtu" -> ensureBluetoothAvailable(isScan = false, result = result) {
                 val mtu: Int = call.argument("mtu")!!
-                bleManager.requestMtu(result.toWrapper, mtu)
+                executeOnIO {
+                    bleManager.requestMtu(result.toWrapper, mtu)
+                }
             }
             "writeData" -> ensureBluetoothAvailable(isScan = false, result = result) {
                 val bytes: ByteArray = call.argument("bytes")!!
                 val isBle: Boolean = call.argument("isBLE") ?: false
                 val characteristicUuid: String? = call.argument("characteristicUuid")
-                if (isBle) bleManager.writeRawData(bytes, result.toWrapper, characteristicUuid)
-                else classicManager.writeRawData(bytes, result.toWrapper)
+                if (isBle) {
+                    executeOnIO {
+                        bleManager.writeRawData(bytes, result.toWrapper, characteristicUuid)
+                    }
+                } else {
+                    executeOnIO {
+                        classicManager.writeRawData(bytes, result.toWrapper)
+                    }
+                }
             }
             else -> {
                 result.notImplemented()
